@@ -11,7 +11,8 @@
           <ion-input></ion-input>
         </ion-item>
   </ion-list>
-  <ion-button color="primary" (click)="onLogin()">
+  <ion-spinner name="bubbles" *ngIf="isLoading"></ion-spinner>
+  <ion-button color="primary" (click)="onLogin()" *ngIf="!isLoading">
     Login
   </ion-button>
 </ion-content>
