@@ -1,11 +1,14 @@
+import { AuthService } from './../auth/auth.service';
 import { Injectable } from '@angular/core';
 import { Place } from './place.model';
+import { BehaviorSubject } from 'rxjs';
+import { take ,map } from 'rxjs/operators';
 
 @Injectable({
   providedIn: 'root'
 })
 export class PlacesService {
-  private _places: Place[] = [
+  private _places = new BehaviorSubject<Place[]>([
     new Place(
       'p1',
       'Manhattan mansion',
@@ -13,7 +16,8 @@ export class PlacesService {
       'https://loremflickr.com/320/240?random=1',
       149.99,
       new Date('2019-01-01'),
-      new Date('2019-12-31')
+      new Date('2019-12-31'),
+      'abc'
     ),
     new Place(
       'p2',
@@ -22,7 +26,8 @@ export class PlacesService {
       'https://loremflickr.com/320/240?random=2',
       189.99,
       new Date('2019-01-01'),
-      new Date('2019-12-31')
+      new Date('2019-12-31'),
+      'abc'
     ),
     new Place(
       'p3',
@@ -31,17 +36,38 @@ export class PlacesService {
       'https://loremflickr.com/320/240?random=3',
       99.99,
       new Date('2019-01-01'),
-      new Date('2019-12-31')
+      new Date('2019-12-31'),
+      'abc'
     ),
-  ];
+  ]) ;
 
-  constructor() { }
+  constructor(private authService: AuthService) { }
 
   get places() {
-    return [...this._places];
+    return this._places.asObservable();
   }
 
   getPlace(id: string) {
-    return {...this._places.find(p => p.id === id)};
+    return this.places.pipe(take(1), map(places => {
+      return {...places.find(p => p.id === id)};
+    }));
+  }
+
+  addPlace(title: string, description: string,
+          price: number,
+          dateFrom: Date,
+          dateTo: Date) {
+    const newPlace = new Place(Math.random().toString(),
+      title,
+      description,
+      'https://loremflickr.com/320/240?random=4',
+      price,
+      dateFrom,
+      dateTo,
+      this.authService.userId);
+      this.places.pipe(take(1)).subscribe(places => {
+        this._places.next(places.concat(newPlace));
+      });
+      
   }
 }// cs
