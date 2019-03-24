@@ -1,3 +1,4 @@
+import { AuthService } from './../../../auth/auth.service';
 import { BookingService } from './../../../bookings/booking.service';
 import { Subscription } from 'rxjs';
 import { Component, OnInit, OnDestroy } from '@angular/core';
@@ -14,6 +15,7 @@ import { CreateBookingComponent } from '../../../bookings/create-booking/create-
 })
 export class PlaceDetailPage implements OnInit, OnDestroy {
   place: Place;
+  isBookable = false;
   private placeSub: Subscription;
 
   constructor(private navCtrl: NavController,
@@ -22,7 +24,8 @@ export class PlaceDetailPage implements OnInit, OnDestroy {
     private modalCtrl: ModalController,
     private actionSheetCtrl: ActionSheetController,
     private bookingService: BookingService,
-    private loadingCtrl: LoadingController) { }
+    private loadingCtrl: LoadingController,
+    private authService: AuthService) { }
 
     ngOnInit() {
       this.route.paramMap.subscribe(paramMap => {
@@ -30,8 +33,11 @@ export class PlaceDetailPage implements OnInit, OnDestroy {
           this.navCtrl.navigateBack('/places/tabs/offers');
           return;
         }
-        this.placeSub = this.placesService.getPlace(paramMap.get('placeId')).subscribe(place => {
-          this.place = place;
+        this.placeSub = this.placesService
+          .getPlace(paramMap.get('placeId'))
+          .subscribe(place => {
+            this.place = place;
+            this.isBookable =   place.userId !== this.authService.userId;
         });
       });
     }
