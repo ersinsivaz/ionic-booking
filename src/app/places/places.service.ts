@@ -1,7 +1,7 @@
 import { AuthService } from './../auth/auth.service';
 import { Injectable } from '@angular/core';
 import { Place } from './place.model';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, of } from 'rxjs';
 import { take, map, tap, delay, switchMap } from 'rxjs/operators';
 import { HttpClient } from '@angular/common/http';
 
@@ -88,9 +88,21 @@ export class PlacesService {
   }
 
   getPlace(id: string) {
-    return this.places.pipe(take(1), map(places => {
-      return {...places.find(p => p.id === id)};
-    }));
+    return this.http.get<PlaceData>(`https://pepper-d2151.firebaseio.com/offered-places/${id}.json`)
+    .pipe(
+      map(resData => {
+        return new Place(
+          id,
+          resData.title,
+          resData.description,
+          resData.imageUrl,
+          resData.price,
+          new Date(resData.availableFrom),
+          new Date(resData.availableTo),
+          resData.userId
+        );
+      })
+    );
   }
 
   addPlace(title: string, description: string,
@@ -127,19 +139,38 @@ export class PlacesService {
   }
 
   updatePlace(placeId: string, title: string, description: string) {
-    return this.places.pipe(take(1), delay(3000), tap(places => {
-      const updatedPlaceIndex = places.findIndex(pl => pl.id === placeId);
-      const updatedPlaces = [...places];
-      const oldPlace = updatedPlaces[updatedPlaceIndex];
-      return updatedPlaces[updatedPlaceIndex] = new Place(
-        oldPlace.id,
-        title,
-        description,
-        oldPlace.imageUrl,
-        oldPlace.price,
-        oldPlace.availableFrom,
-        oldPlace.availableTo,
-        oldPlace.userId);
-    }));
+    let updatedPlaces: Place[];
+    return this.places.pipe(
+      take(1),
+      switchMap(places => {
+        if (!places || places.length <= 0) {
+          return this.fetchPlaces();
+        } else {
+          return of(places);
+        }
+      }),
+      switchMap(places => {
+        const updatedPlaceIndex = places.findIndex(pl => pl.id === placeId);
+        updatedPlaces = [...places];
+        const oldPlace = updatedPlaces[updatedPlaceIndex];
+        updatedPlaces[updatedPlaceIndex] = new Place(
+          oldPlace.id,
+          title,
+          description,
+          oldPlace.imageUrl,
+          oldPlace.price,
+          oldPlace.availableFrom,
+          oldPlace.availableTo,
+          oldPlace.userId
+        );
+        return this.http.put(
+          `https://pepper-d2151.firebaseio.com/offered-places/${placeId}.json`,
+          { ...updatedPlaces[updatedPlaceIndex], id: null }
+        );
+      }),
+      tap(() => {
+        this._places.next(updatedPlaces);
+      })
+    );
   }
 }// cs
