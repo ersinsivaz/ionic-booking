@@ -2,7 +2,18 @@ import { AuthService } from './../auth/auth.service';
 import { Injectable } from '@angular/core';
 import { Place } from './place.model';
 import { BehaviorSubject } from 'rxjs';
-import { take, map, tap, delay } from 'rxjs/operators';
+import { take, map, tap, delay, switchMap } from 'rxjs/operators';
+import { HttpClient } from '@angular/common/http';
+
+interface PlaceData {
+  availableFrom: string;
+  availableTo: string;
+  description: string;
+  imageUrl: string;
+  price: number;
+  title: string;
+  userId: string;
+}
 
 @Injectable({
   providedIn: 'root'
@@ -41,10 +52,39 @@ export class PlacesService {
     ),
   ]) ;
 
-  constructor(private authService: AuthService) { }
+  constructor(
+    private authService: AuthService,
+    private http: HttpClient) { }
 
   get places() {
     return this._places.asObservable();
+  }
+
+  fetchPlaces() {
+    return this.http
+    .get<{[key: string]: PlaceData}>('https://pepper-d2151.firebaseio.com/offered-places.json')
+    .pipe(map(resData => {
+      const places = [];
+      for (const key in resData) {
+        if (resData.hasOwnProperty(key)) {
+          places.push(
+            new Place(
+              key,
+              resData[key].title,
+              resData[key].description,
+              resData[key].imageUrl,
+              resData[key].price,
+              new Date(resData[key].availableFrom),
+              new Date(resData[key].availableTo),
+              resData[key].userId
+            )
+          );
+        }
+      }
+      return places;
+    }), tap(places => {
+      this._places.next(places);
+    }));
   }
 
   getPlace(id: string) {
@@ -57,7 +97,9 @@ export class PlacesService {
           price: number,
           dateFrom: Date,
           dateTo: Date) {
-    const newPlace = new Place(Math.random().toString(),
+            let generatedId: string;
+    const newPlace = new Place(
+      Math.random().toString(),
       title,
       description,
       'https://loremflickr.com/320/240?random=4',
@@ -65,9 +107,23 @@ export class PlacesService {
       dateFrom,
       dateTo,
       this.authService.userId);
-      return this.places.pipe(take(1), delay(3000), tap(places => {
+
+      return this.http.post<{name: string}>('https://pepper-d2151.firebaseio.com/offered-places.json', {...newPlace, id: null})
+        .pipe(
+          switchMap(resData => {
+          generatedId = resData.name;
+          return this.places;
+        }),
+        take(1),
+        tap(places => {
+          newPlace.id = generatedId;
+          this._places.next(places.concat(newPlace));
+        })
+        );
+
+      /* return this.places.pipe(take(1), delay(3000), tap(places => {
         this._places.next(places.concat(newPlace));
-      }));
+      })); */
   }
 
   updatePlace(placeId: string, title: string, description: string) {
